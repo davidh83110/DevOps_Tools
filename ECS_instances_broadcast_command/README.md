@@ -26,8 +26,7 @@ Things this program do:
 
 ---
 
-Licence
+## License
 
----
+[MIT](./LICENSE)
 
-MIT
