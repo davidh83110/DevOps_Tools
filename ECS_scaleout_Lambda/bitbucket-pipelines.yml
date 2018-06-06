@@ -1,0 +1,59 @@
+pipelines:
+  default:
+    - step:
+        name: build and testing
+        script:
+          - pip2 install boto3
+          - python2 lambda_function.py
+  branches:
+    master:
+      - step:
+          image: python:2.7-alpine3.6
+          script:
+            - pip2 install boto3
+            - python2 lambda_function.py
+            - apk update && apk add zip
+            - mkdir -p $PWD/target
+            - zip $PWD/target/artifact.zip ./ -r -x '*target*' -x '*.git/*' 
+          artifacts:
+            - target/**
+      - step:
+          name: Deploy to production account
+          image: 
+            name: 3329333334.dkr.ecr.ap-southeast-1.amazonaws.com/pipeline-aws-cli:1.0.0
+            aws:
+              access-key: $AWS_ACCESS_KEY_ID
+              secret-key: $AWS_SECRET_ACCESS_KEY
+            deployment: production
+            script:
+              - aws --version
+              - aws lambda update-function-code --region $AWS_DEFAULT_REGION 
+                --function-name AutoScalingForECS --zip-file fileb://target/artifact.zip --publish
+    dev:
+      - step:
+          image: python:2.7-alpine3.6
+          script:
+            - pip2 install boto3
+            - python2 lambda_function.py
+            - apk update && apk add zip
+            - mkdir -p $PWD/target
+            - zip $PWD/target/artifact.zip ./ -r -x '*target*' -x '*.git/*' 
+          artifacts:
+            - target/**
+      - step:
+          name: Deploy to test account
+          image: 
+            name: 9222225087.dkr.ecr.ap-southeast-1.amazonaws.com/devops:pipeline-aws-cli-1.0
+            aws:
+              access-key: $AWS_ACCESS_KEY_ID_TEST
+              secret-key: $AWS_SECRET_ACCESS_KEY_TEST
+          # trigger: manual
+          # image: aws-cli:1.0
+          deployment: test
+          script:
+            - export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_TEST
+            - export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_TEST
+            - aws --version
+            - aws lambda update-function-code --region $AWS_DEFAULT_REGION 
+              --function-name david-test-auto-scaling --zip-file fileb://target/artifact.zip --publish
+
